@@ -1,6 +1,8 @@
 package com.mrlang.springboottelegrambot.service;
 
 import com.mrlang.springboottelegrambot.config.BotConfig;
+import com.mrlang.springboottelegrambot.model.User;
+import com.mrlang.springboottelegrambot.model.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -13,6 +15,7 @@ import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +23,7 @@ import java.util.List;
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
     final BotConfig config;
+    final UserRepository userRepository;
 
     static final String HELP_TEXT = """
             This bot is created to demonstrate Spring capabilities.
@@ -37,9 +41,10 @@ public class TelegramBot extends TelegramLongPollingBot {
             Type /help to see this message again""";
 
     @Autowired
-    public TelegramBot(BotConfig config) {
+    public TelegramBot(BotConfig config, UserRepository userRepository) {
         super(config.getToken());
         this.config = config;
+        this.userRepository = userRepository;
 
         List<BotCommand> listOfCommands = new ArrayList<>();
         listOfCommands.add(new BotCommand("/start", "get a welcome message"));
@@ -62,6 +67,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (msg != null && msg.hasText()) {
             switch (msg.getText()) {
                 case "/start":
+                    registerUser(msg);
                     startCommandReceived(update);
                     break;
                 case "/help":
@@ -70,6 +76,21 @@ public class TelegramBot extends TelegramLongPollingBot {
                 default:
                     sendMessage(msg.getChatId(), "Sorry, command was not recognized");
             }
+        }
+    }
+
+    private void registerUser(Message msg) {
+        if (!userRepository.existsById(msg.getChatId())) {
+            User user = new User();
+
+            user.setChatId(msg.getChatId());
+            user.setFirstName(msg.getChat().getFirstName());
+            user.setLastName(msg.getChat().getLastName());
+            user.setUserName(msg.getChat().getUserName());
+            user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
+
+            userRepository.save(user);
+            log.info("New user saved: " + user);
         }
     }
 
