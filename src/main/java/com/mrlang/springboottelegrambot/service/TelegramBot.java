@@ -3,6 +3,7 @@ package com.mrlang.springboottelegrambot.service;
 import com.mrlang.springboottelegrambot.config.BotConfig;
 import com.mrlang.springboottelegrambot.model.User;
 import com.mrlang.springboottelegrambot.model.UserRepository;
+import com.vdurmont.emoji.EmojiParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -96,7 +97,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private void startCommandReceived(Update update) {
         Message msg = update.getMessage();
-        String answer = "Hi, " + msg.getChat().getFirstName() +", nice to meet you!";
+        String answer = EmojiParser.parseToUnicode(
+                "Hi, " + msg.getChat().getFirstName() +", nice to meet you!" + ":heart_eyes:");
         log.info("Replied to user " + msg.getChat().getFirstName());
 
         sendMessage(msg.getChatId(), answer);
