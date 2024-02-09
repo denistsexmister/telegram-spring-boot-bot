@@ -10,11 +10,15 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -66,9 +70,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        Message msg = update.getMessage();
-
-        if (msg != null && msg.hasText()) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            Message msg = update.getMessage();
             switch (msg.getText()) {
                 case "/start":
                     registerUser(msg);
@@ -77,9 +80,63 @@ public class TelegramBot extends TelegramLongPollingBot {
                 case "/help":
                     sendMessage(msg.getChatId(), HELP_TEXT);
                     break;
+                case "/register":
+                    register(msg.getChatId());
+                    break;
                 default:
                     sendMessage(msg.getChatId(), "Sorry, command was not recognized");
             }
+        } else if (update.hasCallbackQuery()) {
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            if (callbackQuery.getData().equals("YES_BUTTON")) {
+                EditMessageText editMessage = EditMessageText.builder()
+                        .chatId(callbackQuery.getMessage().getChatId())
+                        .messageId(((Message) callbackQuery.getMessage()).getMessageId())
+                        .text("You pressed Yes button!")
+                        .build();
+
+                try {
+                    execute(editMessage);
+                } catch (TelegramApiException e) {
+                    log.error("Error occurred: " + e.getMessage());
+                }
+            } else if (callbackQuery.getData().equals("NO_BUTTON")) {
+                EditMessageText editMessage = EditMessageText.builder()
+                        .chatId(callbackQuery.getMessage().getChatId())
+                        .messageId(((Message) callbackQuery.getMessage()).getMessageId())
+                        .text("You pressed No button!")
+                        .build();
+
+                try {
+                    execute(editMessage);
+                } catch (TelegramApiException e) {
+                    log.error("Error occurred: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void register(long chatId) {
+        InlineKeyboardMarkup keyboardMarkup = InlineKeyboardMarkup.builder()
+                .keyboardRow(List.of(InlineKeyboardButton.builder()
+                                .text("Yes")
+                                .callbackData("YES_BUTTON")
+                                .build(),
+                             InlineKeyboardButton.builder()
+                                     .text("No")
+                                     .callbackData("NO_BUTTON")
+                                     .build()))
+                .build();
+        SendMessage sm = SendMessage.builder()
+                .chatId(chatId)
+                .text("Do you really want to register?")
+                .replyMarkup(keyboardMarkup)
+                .build();
+
+        try {
+            execute(sm);
+        } catch (TelegramApiException e) {
+            log.error("Error occurred: " + e.getMessage());
         }
     }
 
